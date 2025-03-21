@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:bloc/bloc.dart';
 import 'package:meta/meta.dart';
 
@@ -5,76 +7,75 @@ part 'calculator_state.dart';
 
 class CalculatorCubit extends Cubit<CalculatorState> {
   CalculatorCubit() : super(CalculatorInitial('0'));
+  String display = '';
+  String firstNumber = '';
+  String secondNumber = '';
+  String operation = '';
 
-  String _input = '';
-  String _operator = '';
-  double? _firstNumber;
-
-  void onButtonPressed(String value) {
-    if (value == 'C') {
+  void onButtonPressed(String number) {
+    if (number == '=') {
+      calculateResult();
+    } else if (number == '+' ||
+        number == '/' ||
+        number == '-' ||
+        number == '*') {
+      operationPressed(number);
+    } else if (number == 'C') {
       _clear();
-    } else if (value == '=') {
-      _calculateResult();
-    } else if (_isOperator(value)) {
-      _setOperator(value);
     } else {
-      _appendNumber(value);
+      display += number;
+
+      emit(CalculatorInitial(display));
+    }
+  }
+
+  void operationPressed(String op) {
+    if (display.isNotEmpty) {
+      firstNumber = display;
+      operation = op;
+      display = '';
+      String value = firstNumber + operation;
+      emit(CalculatorInitial(value));
+    }
+  }
+
+  void calculateResult() {
+    if (firstNumber.isNotEmpty && display.isNotEmpty) {
+      secondNumber = display;
+      double num1 = double.parse(firstNumber);
+      double num2 = double.parse(secondNumber);
+      double result = 0;
+
+      switch (operation) {
+        case '+':
+          result = num1 + num2;
+          break;
+        case '-':
+          result = num1 - num2;
+          break;
+        case '*':
+          result = num1 * num2;
+          break;
+        case '/':
+          if (num2 != 0) {
+            result = num1 / num2;
+          } else {
+            display = 'Error';
+            emit(CalculatorInitial(display));
+            return;
+          }
+          break;
+      }
+      display = result.toString();
+      emit(CalculatorInitial(display));
     }
   }
 
   void _clear() {
-    _input = '';
-    _operator = '';
-    _firstNumber = null;
+    display = '';
+    firstNumber = '';
+    secondNumber = '';
+    operation = '';
     emit(CalculatorInitial('0'));
-  }
-
-  bool _isOperator(String value) {
-    return ['+', '-', '*', '/'].contains(value);
-  }
-
-  void _setOperator(String operator) {
-    if (_input.isNotEmpty) {
-      _firstNumber = double.tryParse(_input);
-      _operator = operator;
-      _input = '';
-    }
-  }
-
-  void _appendNumber(String value) {
-    if (value == '.' && _input.contains('.')) return; // منع أكتر من نقطة
-    _input += value;
-    emit(CalculatorInitial(_input));
-  }
-
-  void _calculateResult() {
-    if (_firstNumber == null || _input.isEmpty) return;
-    double secondNumber = double.tryParse(_input) ?? 0.0;
-
-    double result;
-    try {
-      switch (_operator) {
-        case '+':
-          result = _firstNumber! + secondNumber;
-          break;
-        case '-':
-          result = _firstNumber! - secondNumber;
-          break;
-        case '*':
-          result = _firstNumber! * secondNumber;
-          break;
-        case '/':
-          if (secondNumber == 0) throw Exception("Division by zero");
-          result = _firstNumber! / secondNumber;
-          break;
-        default:
-          emit(CalculatorError("Invalid Operator"));
-          return;
-      }
-      emit(CalculatorResult(result.toString()));
-      _clear();
-    } catch (e) {
-      emit(CalculatorError(e.toString()));
-    }
   }
 }
